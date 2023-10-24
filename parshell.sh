@@ -10,6 +10,9 @@ help_menu=0
 endpoint=0
 nmapScan=0
 all=0
+onGoing=0
+addDone=""
+doneFile=".parshell_done"
 
 # Función para mostrar el menú de ayuda
 show_help() {
@@ -26,6 +29,8 @@ show_help() {
     echo "  --script   Depende de nmapScan; Genera los comandos de nmap con el script solicitado"
     echo "  --printAll Devuelve la relación IP-Puertos sin entrar en detalles, con esto podemos facilmente obtener todos los puertos únicos, así como todos los servicios únicos"
     echo "             [!] Para combinarlo con los parámetros ip, port o service necesitas añadir un valor para que no lo tome por vacío / parshell --printAll --ip 0"     
+    echo "  --onGoing  Te muestra la información de los servicios o puertos que aún no se han escaneado!"
+    echo "  --addDone  Añade al fichero .done "
     echo "  -h         Muestra este menú de ayuda"
 
 }
@@ -82,6 +87,15 @@ while [[ $# -gt 0 ]]; do
         printAll=1
         shift # Pasamos al siguiente argumento
         ;;
+        --onGoing)
+        onGoing=1
+        shift # Pasamos al siguiente argumento
+        ;;
+        --addDone)
+        addDone="$2"
+        shift # Pasamos al siguiente argumento
+        shift # Pasamos al siguiente argumento
+        ;;
         *)    # Cualquier argumento no reconocido
         echo "Argumento no reconocido: $1"
         exit 1
@@ -92,6 +106,13 @@ done
 # Si se activó el menú de ayuda, lo mostramos
 if [[ $help_menu -eq 1 ]]; then
     show_help
+    exit 0
+fi
+
+# Si se activó el menú de ayuda, lo mostramos
+if [[ -n $addDone ]]; then
+    echo $addDone >> $doneFile
+    cat $doneFile
     exit 0
 fi
 
@@ -120,7 +141,12 @@ fi
 if [[ $printAll -eq 1 ]]; then
     echo "Dentro del printAll!"
     if [[ -z "$ip" && -z "$port" && -z "$service" ]]; then
-        eval "cat $file"
+        if [[ $onGoing -eq 1 ]]; then
+            done=$(cat $doneFile | xargs | tr " " "|")
+            eval "cat $file | grep -Ev \"$(echo $done)\" | grep -v \"|\""
+        else
+            eval "cat $file"
+        fi
     elif [[ -z "$ip" && -z "$port" && -n "$service" ]]; then
         eval "cat $file" | grep -E "/tcp|/udp" | awk '{for (i=4; i<=NF; ++i) printf "%s ", $i; print ""}' | sort -u
     elif [[ -n "$ip" && -z "$port" && -z "$service" ]]; then
